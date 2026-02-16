@@ -197,6 +197,38 @@ public abstract class SharedEmitter
     return dt.Constructors.Count > 1 && dt.Constructors.All(c => c.Fields.Count == 0);
   }
 
+  /// <summary>
+  /// Check if a datatype is an erased wrapper (single constructor, single field).
+  /// Dafny's JS backend erases these to their inner type at runtime.
+  /// </summary>
+  protected bool IsErasedWrapper(DatatypeInfo dt)
+  {
+    return dt.Constructors.Count == 1 && dt.Constructors[0].Fields.Count == 1;
+  }
+
+  private HashSet<string>? _erasedWrapperTypeNames;
+
+  /// <summary>
+  /// Cached set of erased wrapper type names (computed from Datatypes).
+  /// </summary>
+  protected HashSet<string> ErasedWrapperTypeNames
+  {
+    get
+    {
+      _erasedWrapperTypeNames ??= new HashSet<string>(
+        Datatypes.Where(IsErasedWrapper).Select(dt => dt.Name));
+      return _erasedWrapperTypeNames;
+    }
+  }
+
+  /// <summary>
+  /// Check if a TypeRef refers to an erased wrapper type.
+  /// </summary>
+  protected bool IsErasedWrapperType(TypeRef type)
+  {
+    return type.Kind == TypeKind.Datatype && ErasedWrapperTypeNames.Contains(type.Name);
+  }
+
   // =========================================================================
   // Helpers Generation
   // =========================================================================
@@ -398,7 +430,13 @@ public abstract class SharedEmitter
       ? $"<{string.Join(", ", typeParams)}>"
       : "";
 
-    if (IsEnumLike(dt))
+    if (IsErasedWrapper(dt))
+    {
+      // Erased wrapper: Dafny JS backend erases to inner type at runtime
+      var innerType = TypeMapper.TypeRefToDafnyRuntime(dt.Constructors[0].Fields[0].Type);
+      Sb.AppendLine($"type {name}{typeParamStr} = {innerType};");
+    }
+    else if (IsEnumLike(dt))
     {
       // Enum-like: discriminated union with is_* flags
       var variants = new List<string>();
@@ -575,7 +613,16 @@ public abstract class SharedEmitter
       p => $"{p}_fromJson"
     );
 
-    if (dt.Constructors.Count == 1)
+    if (IsErasedWrapper(dt))
+    {
+      // Erased wrapper: convert inner field directly (no create_Ctor wrapper)
+      var ctor = dt.Constructors[0];
+      var field = ctor.Fields[0];
+      var jsonAccess = $"json.{field.Name}";
+      var converted = TypeMapper.JsonToDafny(field.Type, jsonAccess, dt.ModuleName + ".", typeParamConverters);
+      Sb.AppendLine($"  return {converted};");
+    }
+    else if (dt.Constructors.Count == 1)
     {
       var ctor = dt.Constructors[0];
       EmitConstructorFromJson(dt, ctor, "  ", typeParamConverters);
@@ -683,7 +730,14 @@ public abstract class SharedEmitter
       p => $"{p}_toJson"
     );
 
-    if (dt.Constructors.Count == 1)
+    if (IsErasedWrapper(dt))
+    {
+      // Erased wrapper: value IS the inner type, not a wrapper object
+      var field = dt.Constructors[0].Fields[0];
+      var converted = TypeMapper.DafnyToJson(field.Type, "value", DomainModule + ".", typeParamConverters);
+      Sb.AppendLine($"  return {{ {field.Name}: {converted} }};");
+    }
+    else if (dt.Constructors.Count == 1)
     {
       var ctor = dt.Constructors[0];
       EmitConstructorToJson(dt, ctor, "  ", false, typeParamConverters);
@@ -888,6 +942,22 @@ public abstract class SharedEmitter
       return;
     }
 
+    // Check if this is an erased wrapper type (single ctor, single field)
+    if (ctor.Fields.Count == 1)
+    {
+      var dt = Datatypes.FirstOrDefault(d => d.Name == typeName);
+      if (dt != null && IsErasedWrapper(dt))
+      {
+        var field = ctor.Fields[0];
+        string parm = EmitTypeScript
+          ? $"{field.Name}: {TypeMapper.TypeRefToTypeScript(field.Type)}"
+          : field.Name;
+        var converted = TypeMapper.JsonToDafny(field.Type, field.Name, DomainModule + ".");
+        Sb.AppendLine($"  {ctor.Name}: ({parm}) => {converted},");
+        return;
+      }
+    }
+
     string parms;
     if (EmitTypeScript)
     {
@@ -962,10 +1032,10 @@ public abstract class SharedEmitter
     string parms;
     if (EmitTypeScript)
     {
-      // Action constructors take JSON input types (or Dafny runtime types for datatype fields)
+      // Action constructors take JSON input types (or Dafny runtime types for non-erased datatype fields)
       var typedParams = ctor.Fields.Select(f =>
       {
-        if (f.Type.Kind == TypeKind.Datatype)
+        if (f.Type.Kind == TypeKind.Datatype && !IsErasedWrapperType(f.Type))
           return $"{f.Name}: {TypeMapper.TypeRefToDafnyRuntime(f.Type)}";
         else
           return $"{f.Name}: {TypeMapper.TypeRefToTypeScript(f.Type)}";
@@ -980,12 +1050,14 @@ public abstract class SharedEmitter
     var args = new List<string>();
     foreach (var field in ctor.Fields)
     {
-      if (field.Type.Kind == TypeKind.Datatype)
+      if (field.Type.Kind == TypeKind.Datatype && !IsErasedWrapperType(field.Type))
       {
+        // Non-erased datatype: pass through (already a Dafny runtime object)
         args.Add(field.Name);
       }
       else
       {
+        // Primitives and erased wrappers: convert from JSON to Dafny
         args.Add(TypeMapper.JsonToDafny(field.Type, field.Name, DomainModule + "."));
       }
     }
@@ -999,11 +1071,11 @@ public abstract class SharedEmitter
     string parms;
     if (EmitTypeScript)
     {
-      // For params that get converted inside (primitives), use JSON types (number, string, etc.)
-      // For datatypes that are passed through, use Dafny runtime types
+      // For params that get converted inside (primitives + erased wrappers), use JSON types
+      // For non-erased datatypes that are passed through, use Dafny runtime types
       var typedParams = func.Parameters.Select(p =>
       {
-        if (p.Type.Kind == TypeKind.Datatype || p.Type.Kind == TypeKind.Other)
+        if ((p.Type.Kind == TypeKind.Datatype && !IsErasedWrapperType(p.Type)) || p.Type.Kind == TypeKind.Other)
           return $"{p.Name}: {TypeMapper.TypeRefToDafnyRuntime(p.Type)}";
         else
           return $"{p.Name}: {TypeMapper.TypeRefToTypeScript(p.Type)}";
@@ -1018,12 +1090,14 @@ public abstract class SharedEmitter
     var convertedArgs = new List<string>();
     foreach (var p in func.Parameters)
     {
-      if (p.Type.Kind == TypeKind.Datatype || p.Type.Kind == TypeKind.Other)
+      if ((p.Type.Kind == TypeKind.Datatype && !IsErasedWrapperType(p.Type)) || p.Type.Kind == TypeKind.Other)
       {
+        // Non-erased datatype or Other: pass through (already a Dafny runtime object)
         convertedArgs.Add(p.Name);
       }
       else
       {
+        // Primitives and erased wrappers: convert from JSON to Dafny
         convertedArgs.Add(TypeMapper.JsonToDafny(p.Type, p.Name, DomainModule + "."));
       }
     }

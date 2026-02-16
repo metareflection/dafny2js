@@ -466,7 +466,7 @@ public class AppJsEmitter
     var keyConvert = TypeMapper.DafnyToJson(keyType, "k", _domainModule + ".", typeParamConverters);
     var valConvert = TypeMapper.DafnyToJson(valType, "v", _domainModule + ".", typeParamConverters);
 
-    _sb.AppendLine($"{indent}const {resultVar} = {{}};");
+    _sb.AppendLine($"{indent}const {resultVar}: Record<string, any> = {{}};");
     _sb.AppendLine($"{indent}if ({dafnyVar} && {dafnyVar}.Keys) {{");
     _sb.AppendLine($"{indent}  for (const k of {dafnyVar}.Keys.Elements) {{");
     _sb.AppendLine($"{indent}    const v = {dafnyVar}.get(k);");

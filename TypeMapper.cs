@@ -391,7 +391,7 @@ public static class TypeMapper
     var keyConvert = DafnyToJson(keyType, "k", moduleName, typeParamConverters);
     var valConvert = DafnyToJson(valType, "v", moduleName, typeParamConverters);
 
-    return $"((dm) => {{ const obj = {{}}; if (dm && dm.Keys) {{ for (const k of dm.Keys.Elements) {{ obj[{keyConvert}] = {valConvert.Replace("v", "dm.get(k)")}; }} }} return obj; }})({dafnyVar})";
+    return $"((dm) => {{ const obj: Record<string, any> = {{}}; if (dm && dm.Keys) {{ for (const k of dm.Keys.Elements) {{ obj[{keyConvert}] = {valConvert.Replace("v", "dm.get(k)")}; }} }} return obj; }})({dafnyVar})";
   }
 
   // =========================================================================
@@ -455,7 +455,7 @@ public static class TypeMapper
     string indent = "  ")
   {
     if (mapType.TypeArgs.Count < 2)
-      return $"{indent}const {resultVar} = {{}};";
+      return $"{indent}const {resultVar}: Record<string, any> = {{}};";
 
     var keyType = mapType.TypeArgs[0];
     var valType = mapType.TypeArgs[1];
@@ -463,7 +463,7 @@ public static class TypeMapper
     var keyConvert = DafnyToJson(keyType, "k", moduleName);
     var valConvert = DafnyToJson(valType, "v", moduleName);
 
-    return $@"{indent}const {resultVar} = {{}};
+    return $@"{indent}const {resultVar}: Record<string, any> = {{}};
 {indent}if ({dafnyVar} && {dafnyVar}.Keys) {{
 {indent}  for (const k of {dafnyVar}.Keys.Elements) {{
 {indent}    const v = {dafnyVar}.get(k);

@@ -258,6 +258,8 @@ public static class ClaimsExtractor
 
   /// <summary>
   /// Extract conjuncts from an expression by splitting on && (And operator).
+  /// Returns a list of string representations of each conjunct.
+  /// Even a single expression is returned as a one-element list.
   /// </summary>
   private static List<string>? ExtractConjuncts(Expression expr)
   {

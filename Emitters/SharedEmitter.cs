@@ -284,6 +284,60 @@ public abstract class SharedEmitter
   }
 
   /// <summary>
+  /// Collect which base Dafny runtime types are needed by scanning all field types.
+  /// </summary>
+  HashSet<string> CollectNeededBaseTypes(List<DatatypeInfo> allTypesToGenerate)
+  {
+    var needed = new HashSet<string>();
+
+    foreach (var dt in allTypesToGenerate)
+    {
+      foreach (var ctor in dt.Constructors)
+      {
+        foreach (var field in ctor.Fields)
+        {
+          CollectBaseTypesFromTypeRef(field.Type, needed);
+        }
+      }
+    }
+
+    return needed;
+  }
+
+  void CollectBaseTypesFromTypeRef(TypeRef type, HashSet<string> needed)
+  {
+    switch (type.Kind)
+    {
+      case TypeKind.Int:
+        needed.Add("DafnyInt");
+        break;
+      case TypeKind.String:
+        needed.Add("DafnySeq"); // Strings are sequences in Dafny
+        break;
+      case TypeKind.Seq:
+        needed.Add("DafnySeq");
+        break;
+      case TypeKind.Set:
+        needed.Add("DafnySet");
+        break;
+      case TypeKind.Map:
+        needed.Add("DafnyMap");
+        needed.Add("DafnySet"); // DafnyMap references DafnySet for Keys
+        break;
+      case TypeKind.Tuple:
+        if (type.TypeArgs.Count > 0)
+          needed.Add($"DafnyTuple{type.TypeArgs.Count}");
+        break;
+    }
+
+    // Recurse into type arguments
+    foreach (var arg in type.TypeArgs)
+    {
+      CollectBaseTypesFromTypeRef(arg, needed);
+    }
+  }
+
+  /// <summary>
   /// Emit Dafny runtime type declarations (types representing actual Dafny runtime objects).
   /// </summary>
   protected void EmitDafnyRuntimeTypes(List<DatatypeInfo> allTypesToGenerate)
@@ -293,23 +347,36 @@ public abstract class SharedEmitter
     Sb.AppendLine("// ============================================================================");
     Sb.AppendLine();
 
-    // Base types for Dafny runtime
+    // Collect which base types are actually used
+    var neededTypes = CollectNeededBaseTypes(allTypesToGenerate);
+
+    // Base types for Dafny runtime - only emit what's needed
     Sb.AppendLine("// Base Dafny runtime types");
-    Sb.AppendLine("type DafnyInt = InstanceType<typeof BigNumber>;");
-    Sb.AppendLine("interface DafnySeq<T = unknown> {");
-    Sb.AppendLine("  readonly length: number;");
-    Sb.AppendLine("  readonly [index: number]: T;");
-    Sb.AppendLine("  toVerbatimString?(asLiteral: boolean): string;");
-    Sb.AppendLine("  map<U>(fn: (x: T) => U): U[];");
-    Sb.AppendLine("}");
-    Sb.AppendLine("interface DafnySet<T = unknown> { readonly Elements: Iterable<T>; }");
-    Sb.AppendLine("interface DafnyMap<K = unknown, V = unknown> {");
-    Sb.AppendLine("  readonly Keys: DafnySet<K>;");
-    Sb.AppendLine("  get(key: K): V;");
-    Sb.AppendLine("  contains(key: K): boolean;");
-    Sb.AppendLine("}");
-    Sb.AppendLine("type DafnyTuple2<T0, T1> = readonly [T0, T1];");
-    Sb.AppendLine("type DafnyTuple3<T0, T1, T2> = readonly [T0, T1, T2];");
+    if (neededTypes.Contains("DafnyInt"))
+      Sb.AppendLine("type DafnyInt = InstanceType<typeof BigNumber>;");
+    if (neededTypes.Contains("DafnySeq"))
+    {
+      Sb.AppendLine("interface DafnySeq<T = unknown> {");
+      Sb.AppendLine("  readonly length: number;");
+      Sb.AppendLine("  readonly [index: number]: T;");
+      Sb.AppendLine("  toVerbatimString?(asLiteral: boolean): string;");
+      Sb.AppendLine("  map<U>(fn: (x: T) => U): U[];");
+      Sb.AppendLine("}");
+    }
+    if (neededTypes.Contains("DafnySet"))
+      Sb.AppendLine("interface DafnySet<T = unknown> { readonly Elements: Iterable<T>; }");
+    if (neededTypes.Contains("DafnyMap"))
+    {
+      Sb.AppendLine("interface DafnyMap<K = unknown, V = unknown> {");
+      Sb.AppendLine("  readonly Keys: DafnySet<K>;");
+      Sb.AppendLine("  get(key: K): V;");
+      Sb.AppendLine("  contains(key: K): boolean;");
+      Sb.AppendLine("}");
+    }
+    if (neededTypes.Contains("DafnyTuple2"))
+      Sb.AppendLine("type DafnyTuple2<T0, T1> = readonly [T0, T1];");
+    if (neededTypes.Contains("DafnyTuple3"))
+      Sb.AppendLine("type DafnyTuple3<T0, T1, T2> = readonly [T0, T1, T2];");
     Sb.AppendLine();
 
     // Generate Dafny runtime types for each datatype

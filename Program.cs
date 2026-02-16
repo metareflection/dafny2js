@@ -66,10 +66,21 @@ class Program
       "Path to the .cjs file (required for --deno if different from default location)"
     );
 
+    var claimsOpt = new Option<bool>(
+      new[] { "--claims" },
+      "Extract proof claims (predicates, lemmas, axioms) as JSON"
+    );
+
+    var claimsOutputOpt = new Option<FileInfo?>(
+      new[] { "--claims-output" },
+      "Output file for claims JSON (default: stdout)"
+    );
+
     var root = new RootCommand("Generate app.js and dafny-bundle.ts adapters from Dafny sources")
     {
       fileOpt, appCoreOpt, outputOpt, cjsNameOpt, listOpt,
-      clientOpt, denoOpt, cloudflareOpt, nullOptionsOpt, dispatchOpt, cjsPathOpt
+      clientOpt, denoOpt, cloudflareOpt, nullOptionsOpt, dispatchOpt, cjsPathOpt,
+      claimsOpt, claimsOutputOpt
     };
 
     root.SetHandler(async (context) =>
@@ -85,6 +96,8 @@ class Program
       var nullOptions = context.ParseResult.GetValueForOption(nullOptionsOpt);
       var dispatchArgs = context.ParseResult.GetValueForOption(dispatchOpt) ?? Array.Empty<string>();
       var cjsPath = context.ParseResult.GetValueForOption(cjsPathOpt);
+      var claims = context.ParseResult.GetValueForOption(claimsOpt);
+      var claimsOutput = context.ParseResult.GetValueForOption(claimsOutputOpt);
 
       if (!file.Exists)
       {
@@ -104,6 +117,24 @@ class Program
       if (list)
       {
         ListDatatypes(program, appCore);
+        return;
+      }
+
+      // Handle --claims option
+      if (claims)
+      {
+        var claimsResult = ClaimsExtractor.ExtractClaims(program);
+        var json = ClaimsExtractor.ToJson(claimsResult);
+
+        if (claimsOutput != null)
+        {
+          await File.WriteAllTextAsync(claimsOutput.FullName, json);
+          Console.WriteLine($"Claims written to: {claimsOutput.FullName}");
+        }
+        else
+        {
+          Console.WriteLine(json);
+        }
         return;
       }
 

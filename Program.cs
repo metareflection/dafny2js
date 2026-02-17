@@ -338,6 +338,10 @@ class Program
 
   static async Task<Microsoft.Dafny.Program?> ParseDafnyFileAsync(string filePath)
   {
+    // Suppress Dafny's Assembly.Location warnings in self-contained builds
+    var savedOut = Console.Out;
+    Console.SetOut(TextWriter.Null);
+
     var options = DafnyOptions.Default;
     var reporter = new ConsoleErrorReporter(options);
 
@@ -351,6 +355,7 @@ class Program
 
     if (dafnyFile == null)
     {
+      Console.SetOut(savedOut);
       await Console.Error.WriteLineAsync($"Failed to load Dafny file: {filePath}");
       return null;
     }
@@ -362,6 +367,8 @@ class Program
       "dafny2js",
       options
     );
+
+    Console.SetOut(savedOut);
 
     if (error != null)
     {

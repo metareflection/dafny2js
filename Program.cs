@@ -76,11 +76,21 @@ class Program
       "Output file for claims JSON (default: stdout)"
     );
 
+    var logicSurfaceOpt = new Option<bool>(
+      new[] { "--logic-surface" },
+      "Extract complete logic surface (datatypes, actions, invariants, claims) as JSON"
+    );
+
+    var logicSurfaceOutputOpt = new Option<FileInfo?>(
+      new[] { "--logic-surface-output" },
+      "Output file for logic surface JSON (default: stdout)"
+    );
+
     var root = new RootCommand("Generate app.js and dafny-bundle.ts adapters from Dafny sources")
     {
       fileOpt, appCoreOpt, outputOpt, cjsNameOpt, listOpt,
       clientOpt, denoOpt, cloudflareOpt, nullOptionsOpt, dispatchOpt, cjsPathOpt,
-      claimsOpt, claimsOutputOpt
+      claimsOpt, claimsOutputOpt, logicSurfaceOpt, logicSurfaceOutputOpt
     };
 
     root.SetHandler(async (context) =>
@@ -98,6 +108,8 @@ class Program
       var cjsPath = context.ParseResult.GetValueForOption(cjsPathOpt);
       var claims = context.ParseResult.GetValueForOption(claimsOpt);
       var claimsOutput = context.ParseResult.GetValueForOption(claimsOutputOpt);
+      var logicSurface = context.ParseResult.GetValueForOption(logicSurfaceOpt);
+      var logicSurfaceOutput = context.ParseResult.GetValueForOption(logicSurfaceOutputOpt);
 
       if (!file.Exists)
       {
@@ -120,6 +132,8 @@ class Program
         return;
       }
 
+      var appCoreModule = appCore ?? "AppCore";
+
       // Handle --claims option
       if (claims)
       {
@@ -130,6 +144,23 @@ class Program
         {
           await File.WriteAllTextAsync(claimsOutput.FullName, json);
           Console.WriteLine($"Claims written to: {claimsOutput.FullName}");
+        }
+        else
+        {
+          Console.WriteLine(json);
+        }
+        return;
+      }
+
+      // Handle --logic-surface option
+      if (logicSurface)
+      {
+        var json = LogicSurfaceEmitter.Generate(program, appCoreModule);
+
+        if (logicSurfaceOutput != null)
+        {
+          await File.WriteAllTextAsync(logicSurfaceOutput.FullName, json);
+          Console.WriteLine($"Logic surface written to: {logicSurfaceOutput.FullName}");
         }
         else
         {
@@ -153,7 +184,6 @@ class Program
         ?? datatypes.FirstOrDefault()?.ModuleName
         ?? "Domain";
 
-      var appCoreModule = appCore ?? "AppCore";
       var functions = TypeExtractor.ExtractFunctions(program, appCoreModule);
 
       // Generate client output

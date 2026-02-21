@@ -13,7 +13,8 @@ public static class LogicSurfaceEmitter
   {
     var datatypes = TypeExtractor.ExtractDatatypes(program);
     var functions = TypeExtractor.ExtractFunctions(program, appCoreModule);
-    var claims = ClaimsExtractor.ExtractClaims(program);
+    // Use ClaimsExtractor only to find Inv predicate (full claims are in claims.json)
+    var claimsResult = ClaimsExtractor.ExtractClaims(program);
 
     // Find Model type
     string? modelType = null;
@@ -38,8 +39,8 @@ public static class LogicSurfaceEmitter
       c.Fields.Select(f => new FieldEntry(f.Name, f.Type.ToString())).ToList()
     )).ToList() ?? new List<ActionEntry>();
 
-    // Find Inv predicate from claims
-    var invPredicate = claims.Predicates.FirstOrDefault(p => p.Name == "Inv");
+    // Find Inv predicate from claims extractor
+    var invPredicate = claimsResult.Predicates.FirstOrDefault(p => p.Name == "Inv");
     InvariantEntry? invariant = invPredicate != null
       ? new InvariantEntry(invPredicate.Name, invPredicate.Conjuncts ?? new List<string>())
       : null;
@@ -69,8 +70,7 @@ public static class LogicSurfaceEmitter
       dtEntries,
       invariant,
       appCoreFns,
-      functions.Count > 0,
-      claims
+      functions.Count > 0
     );
 
     var options = new JsonSerializerOptions
@@ -92,8 +92,7 @@ record LogicSurface(
   List<DatatypeEntry> Datatypes,
   InvariantEntry? Invariant,
   List<FunctionEntry> AppCoreFunctions,
-  bool HasAppCore,
-  ClaimsResult Claims
+  bool HasAppCore
 );
 
 record ActionEntry(string Name, List<FieldEntry> Fields);

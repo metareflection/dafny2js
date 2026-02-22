@@ -1155,7 +1155,32 @@ public abstract class SharedEmitter
     var call = $"{AppCoreModule}.__default.{func.Name}({argsStr})";
     var returnConvert = GetReturnConversion(func.ReturnType, call);
 
-    Sb.AppendLine($"  {func.Name}: ({parms}) => {returnConvert},");
+    if (EmitTypeScript)
+    {
+      var returnType = GetReturnTypeAnnotation(func.ReturnType);
+      Sb.AppendLine($"  {func.Name}: ({parms}): {returnType} => {returnConvert},");
+    }
+    else
+    {
+      Sb.AppendLine($"  {func.Name}: ({parms}) => {returnConvert},");
+    }
+  }
+
+  protected string GetReturnTypeAnnotation(TypeRef type)
+  {
+    // If the return gets converted to a JSON type, use the TypeScript type
+    if (type.Kind is TypeKind.Int or TypeKind.String or TypeKind.Bool or TypeKind.Seq or TypeKind.Set or TypeKind.Map or TypeKind.Tuple)
+      return TypeMapper.TypeRefToTypeScript(type);
+
+    // Non-erased datatypes stay as Dafny runtime types
+    if (type.Kind == TypeKind.Datatype && !IsErasedWrapperType(type))
+      return TypeMapper.TypeRefToDafnyRuntime(type);
+
+    // Erased wrappers: the inner type gets converted
+    if (type.Kind == TypeKind.Datatype && IsErasedWrapperType(type))
+      return TypeMapper.TypeRefToTypeScript(type);
+
+    return "unknown";
   }
 
   protected string GetReturnConversion(TypeRef type, string expr)

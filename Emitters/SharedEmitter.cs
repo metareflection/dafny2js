@@ -351,13 +351,13 @@ public abstract class SharedEmitter
       }
     }
 
-    // Scan functions for helper needs only (not base type declarations)
+    // Scan function signatures (parameters have type annotations, and now return types do too)
     foreach (var func in Functions)
     {
-      CollectHelpersFromTypeRef(func.ReturnType, needed);
+      CollectBaseTypesFromTypeRef(func.ReturnType, needed);
       foreach (var param in func.Parameters)
       {
-        CollectHelpersFromTypeRef(param.Type, needed);
+        CollectBaseTypesFromTypeRef(param.Type, needed);
       }
     }
 

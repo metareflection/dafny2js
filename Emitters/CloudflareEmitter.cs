@@ -51,7 +51,7 @@ public class CloudflareEmitter : SharedEmitter
     Sb.AppendLine();
 
     // 3. Helpers
-    EmitHelpers();
+    EmitHelpers(allTypesToGenerate);
     Sb.AppendLine();
 
     // 4. TypeScript interfaces
@@ -206,7 +206,11 @@ public class CloudflareEmitter : SharedEmitter
     }
 
     Sb.AppendLine();
-    Sb.AppendLine("export { dafnyStringToJs, seqToArray, toNumber };");
+    var helperExports = new[] { "dafnyStringToJs", "seqToArray", "toNumber" }
+      .Where(h => NeededSymbols.Contains(h))
+      .ToList();
+    if (helperExports.Count > 0)
+      Sb.AppendLine($"export {{ {string.Join(", ", helperExports)} }};");
   }
 
   void EmitInitFunction()

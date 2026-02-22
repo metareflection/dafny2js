@@ -40,7 +40,7 @@ public class ClientEmitter : SharedEmitter
     Sb.AppendLine();
 
     // 2. Helpers
-    EmitHelpers();
+    EmitHelpers(allTypesToGenerate);
     Sb.AppendLine();
 
     // 3. TypeScript interfaces (if enabled)

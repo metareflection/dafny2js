@@ -15,6 +15,7 @@ public abstract class SharedEmitter
   protected readonly string CjsFileName;
   protected readonly bool NullOptions;
   protected readonly StringBuilder Sb = new();
+  protected HashSet<string> NeededSymbols = new();
 
   protected SharedEmitter(
     List<DatatypeInfo> datatypes,
@@ -233,60 +234,77 @@ public abstract class SharedEmitter
   // Helpers Generation
   // =========================================================================
 
-  protected void EmitHelpers()
+  protected void EmitHelpers(List<DatatypeInfo> allTypesToGenerate)
   {
+    NeededSymbols = CollectNeededBaseTypes(allTypesToGenerate);
+
+    var anyHelper = NeededSymbols.Contains("seqToArray")
+      || NeededSymbols.Contains("toNumber")
+      || NeededSymbols.Contains("dafnyStringToJs");
+
+    if (!anyHelper) return;
+
     Sb.AppendLine("// ============================================================================");
     Sb.AppendLine("// Helpers");
     Sb.AppendLine("// ============================================================================");
     Sb.AppendLine();
 
-    if (EmitTypeScript)
+    if (NeededSymbols.Contains("seqToArray"))
     {
-      Sb.AppendLine("// deno-lint-ignore no-explicit-any");
-      Sb.AppendLine("const seqToArray = (seq: any): any[] => {");
+      if (EmitTypeScript)
+      {
+        Sb.AppendLine("// deno-lint-ignore no-explicit-any");
+        Sb.AppendLine("const seqToArray = (seq: any): any[] => {");
+      }
+      else
+      {
+        Sb.AppendLine("const seqToArray = (seq) => {");
+      }
+      Sb.AppendLine("  const arr = [];");
+      Sb.AppendLine("  for (let i = 0; i < seq.length; i++) {");
+      Sb.AppendLine("    arr.push(seq[i]);");
+      Sb.AppendLine("  }");
+      Sb.AppendLine("  return arr;");
+      Sb.AppendLine("};");
+      Sb.AppendLine();
     }
-    else
-    {
-      Sb.AppendLine("const seqToArray = (seq) => {");
-    }
-    Sb.AppendLine("  const arr = [];");
-    Sb.AppendLine("  for (let i = 0; i < seq.length; i++) {");
-    Sb.AppendLine("    arr.push(seq[i]);");
-    Sb.AppendLine("  }");
-    Sb.AppendLine("  return arr;");
-    Sb.AppendLine("};");
-    Sb.AppendLine();
 
-    if (EmitTypeScript)
+    if (NeededSymbols.Contains("toNumber"))
     {
-      Sb.AppendLine("// deno-lint-ignore no-explicit-any");
-      Sb.AppendLine("const toNumber = (bn: any): number => {");
+      if (EmitTypeScript)
+      {
+        Sb.AppendLine("// deno-lint-ignore no-explicit-any");
+        Sb.AppendLine("const toNumber = (bn: any): number => {");
+      }
+      else
+      {
+        Sb.AppendLine("const toNumber = (bn) => {");
+      }
+      Sb.AppendLine("  if (bn && typeof bn.toNumber === 'function') {");
+      Sb.AppendLine("    return bn.toNumber();");
+      Sb.AppendLine("  }");
+      Sb.AppendLine("  return bn;");
+      Sb.AppendLine("};");
+      Sb.AppendLine();
     }
-    else
-    {
-      Sb.AppendLine("const toNumber = (bn) => {");
-    }
-    Sb.AppendLine("  if (bn && typeof bn.toNumber === 'function') {");
-    Sb.AppendLine("    return bn.toNumber();");
-    Sb.AppendLine("  }");
-    Sb.AppendLine("  return bn;");
-    Sb.AppendLine("};");
-    Sb.AppendLine();
 
-    if (EmitTypeScript)
+    if (NeededSymbols.Contains("dafnyStringToJs"))
     {
-      Sb.AppendLine("// deno-lint-ignore no-explicit-any");
-      Sb.AppendLine("const dafnyStringToJs = (seq: any): string => {");
+      if (EmitTypeScript)
+      {
+        Sb.AppendLine("// deno-lint-ignore no-explicit-any");
+        Sb.AppendLine("const dafnyStringToJs = (seq: any): string => {");
+      }
+      else
+      {
+        Sb.AppendLine("const dafnyStringToJs = (seq) => {");
+      }
+      Sb.AppendLine("  if (typeof seq === 'string') return seq;");
+      Sb.AppendLine("  if (seq.toVerbatimString) return seq.toVerbatimString(false);");
+      Sb.AppendLine("  return Array.from(seq).join('');");
+      Sb.AppendLine("};");
+      Sb.AppendLine();
     }
-    else
-    {
-      Sb.AppendLine("const dafnyStringToJs = (seq) => {");
-    }
-    Sb.AppendLine("  if (typeof seq === 'string') return seq;");
-    Sb.AppendLine("  if (seq.toVerbatimString) return seq.toVerbatimString(false);");
-    Sb.AppendLine("  return Array.from(seq).join('');");
-    Sb.AppendLine("};");
-    Sb.AppendLine();
   }
 
   // =========================================================================
@@ -333,6 +351,15 @@ public abstract class SharedEmitter
       }
     }
 
+    foreach (var func in Functions)
+    {
+      CollectBaseTypesFromTypeRef(func.ReturnType, needed);
+      foreach (var param in func.Parameters)
+      {
+        CollectBaseTypesFromTypeRef(param.Type, needed);
+      }
+    }
+
     return needed;
   }
 
@@ -342,19 +369,24 @@ public abstract class SharedEmitter
     {
       case TypeKind.Int:
         needed.Add("DafnyInt");
+        needed.Add("toNumber");
         break;
       case TypeKind.String:
         needed.Add("DafnySeq"); // Strings are sequences in Dafny
+        needed.Add("dafnyStringToJs");
         break;
       case TypeKind.Seq:
         needed.Add("DafnySeq");
+        needed.Add("seqToArray");
         break;
       case TypeKind.Set:
         needed.Add("DafnySet");
+        needed.Add("seqToArray");
         break;
       case TypeKind.Map:
         needed.Add("DafnyMap");
         needed.Add("DafnySet"); // DafnyMap references DafnySet for Keys
+        needed.Add("seqToArray");
         break;
       case TypeKind.Tuple:
         if (type.TypeArgs.Count > 0)
@@ -379,14 +411,11 @@ public abstract class SharedEmitter
     Sb.AppendLine("// ============================================================================");
     Sb.AppendLine();
 
-    // Collect which base types are actually used
-    var neededTypes = CollectNeededBaseTypes(allTypesToGenerate);
-
     // Base types for Dafny runtime - only emit what's needed
     Sb.AppendLine("// Base Dafny runtime types");
-    if (neededTypes.Contains("DafnyInt"))
+    if (NeededSymbols.Contains("DafnyInt"))
       Sb.AppendLine("type DafnyInt = InstanceType<typeof BigNumber>;");
-    if (neededTypes.Contains("DafnySeq"))
+    if (NeededSymbols.Contains("DafnySeq"))
     {
       Sb.AppendLine("interface DafnySeq<T = unknown> {");
       Sb.AppendLine("  readonly length: number;");
@@ -395,9 +424,9 @@ public abstract class SharedEmitter
       Sb.AppendLine("  map<U>(fn: (x: T) => U): U[];");
       Sb.AppendLine("}");
     }
-    if (neededTypes.Contains("DafnySet"))
+    if (NeededSymbols.Contains("DafnySet"))
       Sb.AppendLine("interface DafnySet<T = unknown> { readonly Elements: Iterable<T>; }");
-    if (neededTypes.Contains("DafnyMap"))
+    if (NeededSymbols.Contains("DafnyMap"))
     {
       Sb.AppendLine("interface DafnyMap<K = unknown, V = unknown> {");
       Sb.AppendLine("  readonly Keys: DafnySet<K>;");
@@ -405,9 +434,9 @@ public abstract class SharedEmitter
       Sb.AppendLine("  contains(key: K): boolean;");
       Sb.AppendLine("}");
     }
-    if (neededTypes.Contains("DafnyTuple2"))
+    if (NeededSymbols.Contains("DafnyTuple2"))
       Sb.AppendLine("type DafnyTuple2<T0, T1> = readonly [T0, T1];");
-    if (neededTypes.Contains("DafnyTuple3"))
+    if (NeededSymbols.Contains("DafnyTuple3"))
       Sb.AppendLine("type DafnyTuple3<T0, T1, T2> = readonly [T0, T1, T2];");
     Sb.AppendLine();
 

@@ -1168,17 +1168,16 @@ public abstract class SharedEmitter
 
   protected string GetReturnTypeAnnotation(TypeRef type)
   {
-    // If the return gets converted to a JSON type, use the TypeScript type
-    if (type.Kind is TypeKind.Int or TypeKind.String or TypeKind.Bool or TypeKind.Seq or TypeKind.Set or TypeKind.Map or TypeKind.Tuple)
+    // These types get converted to JSON by GetReturnConversion
+    if (type.Kind is TypeKind.Int or TypeKind.String or TypeKind.Bool or TypeKind.Seq)
       return TypeMapper.TypeRefToTypeScript(type);
 
-    // Non-erased datatypes stay as Dafny runtime types
-    if (type.Kind == TypeKind.Datatype && !IsErasedWrapperType(type))
+    // Everything else passes through as a Dafny runtime type
+    if (type.Kind is TypeKind.Set or TypeKind.Map or TypeKind.Tuple)
       return TypeMapper.TypeRefToDafnyRuntime(type);
 
-    // Erased wrappers: the inner type gets converted
-    if (type.Kind == TypeKind.Datatype && IsErasedWrapperType(type))
-      return TypeMapper.TypeRefToTypeScript(type);
+    if (type.Kind == TypeKind.Datatype)
+      return TypeMapper.TypeRefToDafnyRuntime(type);
 
     return "unknown";
   }

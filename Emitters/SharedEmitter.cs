@@ -351,12 +351,13 @@ public abstract class SharedEmitter
       }
     }
 
+    // Scan functions for helper needs only (not base type declarations)
     foreach (var func in Functions)
     {
-      CollectBaseTypesFromTypeRef(func.ReturnType, needed);
+      CollectHelpersFromTypeRef(func.ReturnType, needed);
       foreach (var param in func.Parameters)
       {
-        CollectBaseTypesFromTypeRef(param.Type, needed);
+        CollectHelpersFromTypeRef(param.Type, needed);
       }
     }
 
@@ -365,28 +366,24 @@ public abstract class SharedEmitter
 
   void CollectBaseTypesFromTypeRef(TypeRef type, HashSet<string> needed)
   {
+    CollectHelpersFromTypeRef(type, needed);
     switch (type.Kind)
     {
       case TypeKind.Int:
         needed.Add("DafnyInt");
-        needed.Add("toNumber");
         break;
       case TypeKind.String:
         needed.Add("DafnySeq"); // Strings are sequences in Dafny
-        needed.Add("dafnyStringToJs");
         break;
       case TypeKind.Seq:
         needed.Add("DafnySeq");
-        needed.Add("seqToArray");
         break;
       case TypeKind.Set:
         needed.Add("DafnySet");
-        needed.Add("seqToArray");
         break;
       case TypeKind.Map:
         needed.Add("DafnyMap");
         needed.Add("DafnySet"); // DafnyMap references DafnySet for Keys
-        needed.Add("seqToArray");
         break;
       case TypeKind.Tuple:
         if (type.TypeArgs.Count > 0)
@@ -398,6 +395,29 @@ public abstract class SharedEmitter
     foreach (var arg in type.TypeArgs)
     {
       CollectBaseTypesFromTypeRef(arg, needed);
+    }
+  }
+
+  void CollectHelpersFromTypeRef(TypeRef type, HashSet<string> needed)
+  {
+    switch (type.Kind)
+    {
+      case TypeKind.Int:
+        needed.Add("toNumber");
+        break;
+      case TypeKind.String:
+        needed.Add("dafnyStringToJs");
+        break;
+      case TypeKind.Seq:
+      case TypeKind.Set:
+      case TypeKind.Map:
+        needed.Add("seqToArray");
+        break;
+    }
+
+    foreach (var arg in type.TypeArgs)
+    {
+      CollectHelpersFromTypeRef(arg, needed);
     }
   }
 

@@ -9,14 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  create-release:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Create release
-        uses: softprops/action-gh-release@v2
-
   build:
-    needs: create-release
     strategy:
       matrix:
         include:
@@ -51,7 +44,22 @@ jobs:
           cd bin/Release/net8.0/${{ matrix.rid }}/publish
           tar czf ${{ github.workspace }}/dafny2js-${{ matrix.rid }}.tar.gz dafny2js
 
-      - name: Upload release asset
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dafny2js-${{ matrix.rid }}
+          path: dafny2js-${{ matrix.rid }}.tar.gz
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Create release and upload assets
         uses: softprops/action-gh-release@v2
         with:
-          files: dafny2js-${{ matrix.rid }}.tar.gz
+          files: dafny2js-*.tar.gz

@@ -559,7 +559,7 @@ public abstract class SharedEmitter
       Sb.AppendLine($"export interface {name}{typeParamStr} {{");
       foreach (var field in ctor.Fields)
       {
-        var tsType = TypeMapper.TypeRefToTypeScript(field.Type);
+        var tsType = TypeMapper.TypeRefToTypeScript(field.Type, preserveTypeParams: true);
         Sb.AppendLine($"  {field.Name}: {tsType};");
       }
       Sb.AppendLine("}");
@@ -581,7 +581,7 @@ public abstract class SharedEmitter
         else
         {
           var fields = string.Join("; ", ctor.Fields.Select(f =>
-            $"{f.Name}: {TypeMapper.TypeRefToTypeScript(f.Type)}"));
+            $"{f.Name}: {TypeMapper.TypeRefToTypeScript(f.Type, preserveTypeParams: true)}"));
           Sb.AppendLine($"{prefix}{{ type: '{ctor.Name}'; {fields} }}{suffix}");
         }
       }

@@ -24,7 +24,7 @@ public static class TypeMapper
   /// <summary>
   /// Convert a Dafny TypeRef to a TypeScript type string (JSON representation).
   /// </summary>
-  public static string TypeRefToTypeScript(TypeRef type)
+  public static string TypeRefToTypeScript(TypeRef type, bool preserveTypeParams = false)
   {
     return type.Kind switch
     {
@@ -32,21 +32,21 @@ public static class TypeMapper
       TypeKind.Bool => "boolean",
       TypeKind.String => "string",
       TypeKind.Seq => type.TypeArgs.Count > 0
-        ? $"{TypeRefToTypeScript(type.TypeArgs[0])}[]"
+        ? $"{TypeRefToTypeScript(type.TypeArgs[0], preserveTypeParams)}[]"
         : "unknown[]",
       TypeKind.Set => type.TypeArgs.Count > 0
-        ? $"{TypeRefToTypeScript(type.TypeArgs[0])}[]"
+        ? $"{TypeRefToTypeScript(type.TypeArgs[0], preserveTypeParams)}[]"
         : "unknown[]",
       TypeKind.Map => type.TypeArgs.Count >= 2
-        ? $"Record<string, {TypeRefToTypeScript(type.TypeArgs[1])}>"
+        ? $"Record<string, {TypeRefToTypeScript(type.TypeArgs[1], preserveTypeParams)}>"
         : "Record<string, unknown>",
       TypeKind.Tuple => type.TypeArgs.Count > 0
-        ? $"[{string.Join(", ", type.TypeArgs.Select(TypeRefToTypeScript))}]"
+        ? $"[{string.Join(", ", type.TypeArgs.Select(a => TypeRefToTypeScript(a, preserveTypeParams)))}]"
         : "unknown[]",
       TypeKind.Datatype => type.TypeArgs.Count > 0
-        ? $"{SanitizeForJs(type.Name)}<{string.Join(", ", type.TypeArgs.Select(TypeRefToTypeScript))}>"
+        ? $"{SanitizeForJs(type.Name)}<{string.Join(", ", type.TypeArgs.Select(a => TypeRefToTypeScript(a, preserveTypeParams)))}>"
         : SanitizeForJs(type.Name),
-      TypeKind.TypeParam => "unknown", // Type params not in scope, use unknown
+      TypeKind.TypeParam => preserveTypeParams ? type.Name : "unknown",
       _ => "unknown"
     };
   }

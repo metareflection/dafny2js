@@ -492,7 +492,7 @@ public abstract class SharedEmitter
       foreach (var ctor in dt.Constructors)
       {
         var flags = dt.Constructors.Select(c =>
-          $"readonly is_{c.Name}: {(c.Name == ctor.Name ? "true" : "false")}");
+          $"readonly is_{TypeMapper.DafnyMangle(c.Name)}: {(c.Name == ctor.Name ? "true" : "false")}");
         variants.Add($"{{ {string.Join("; ", flags)} }}");
       }
       Sb.AppendLine($"type {name}{typeParamStr} = {string.Join(" | ", variants)};");
@@ -502,11 +502,11 @@ public abstract class SharedEmitter
       // Single constructor: interface with dtor_* fields
       var ctor = dt.Constructors[0];
       Sb.AppendLine($"interface {name}{typeParamStr} {{");
-      Sb.AppendLine($"  readonly is_{ctor.Name}: true;");
+      Sb.AppendLine($"  readonly is_{TypeMapper.DafnyMangle(ctor.Name)}: true;");
       foreach (var field in ctor.Fields)
       {
         var dafnyType = TypeMapper.TypeRefToDafnyRuntime(field.Type);
-        Sb.AppendLine($"  readonly dtor_{field.Name}: {dafnyType};");
+        Sb.AppendLine($"  readonly dtor_{TypeMapper.DafnyMangle(field.Name)}: {dafnyType};");
       }
       Sb.AppendLine("}");
     }
@@ -520,13 +520,13 @@ public abstract class SharedEmitter
         // Add is_* flags for all constructors
         foreach (var c in dt.Constructors)
         {
-          parts.Add($"readonly is_{c.Name}: {(c.Name == ctor.Name ? "true" : "false")}");
+          parts.Add($"readonly is_{TypeMapper.DafnyMangle(c.Name)}: {(c.Name == ctor.Name ? "true" : "false")}");
         }
         // Add dtor_* fields for this constructor's fields
         foreach (var field in ctor.Fields)
         {
           var dafnyType = TypeMapper.TypeRefToDafnyRuntime(field.Type);
-          parts.Add($"readonly dtor_{field.Name}: {dafnyType}");
+          parts.Add($"readonly dtor_{TypeMapper.DafnyMangle(field.Name)}: {dafnyType}");
         }
         variants.Add($"{{ {string.Join("; ", parts)} }}");
       }
@@ -682,7 +682,7 @@ public abstract class SharedEmitter
       foreach (var ctor in dt.Constructors)
       {
         Sb.AppendLine($"    case '{ctor.Name}':");
-        Sb.AppendLine($"      return {dt.ModuleName}.{dt.Name}.create_{ctor.Name}();");
+        Sb.AppendLine($"      return {dt.ModuleName}.{dt.Name}.create_{TypeMapper.DafnyMangle(ctor.Name)}();");
       }
       Sb.AppendLine("    default:");
       Sb.AppendLine($"      throw new Error(`Unknown {dt.Name}: ${{json}}`);");
@@ -709,7 +709,7 @@ public abstract class SharedEmitter
   {
     if (ctor.Fields.Count == 0)
     {
-      Sb.AppendLine($"{indent}return {dt.ModuleName}.{dt.Name}.create_{ctor.Name}();");
+      Sb.AppendLine($"{indent}return {dt.ModuleName}.{dt.Name}.create_{TypeMapper.DafnyMangle(ctor.Name)}();");
       return;
     }
 
@@ -734,7 +734,7 @@ public abstract class SharedEmitter
     }
 
     var argList = string.Join(",\n" + indent + "  ", args);
-    Sb.AppendLine($"{indent}return {dt.ModuleName}.{dt.Name}.create_{ctor.Name}(");
+    Sb.AppendLine($"{indent}return {dt.ModuleName}.{dt.Name}.create_{TypeMapper.DafnyMangle(ctor.Name)}(");
     Sb.AppendLine($"{indent}  {argList}");
     Sb.AppendLine($"{indent});");
   }
@@ -797,7 +797,7 @@ public abstract class SharedEmitter
       {
         var ctor = dt.Constructors[i];
         var prefix = i == 0 ? "if" : "} else if";
-        Sb.AppendLine($"  {prefix} (value.is_{ctor.Name}) {{");
+        Sb.AppendLine($"  {prefix} (value.is_{TypeMapper.DafnyMangle(ctor.Name)}) {{");
         Sb.AppendLine($"    return '{ctor.Name}';");
       }
       Sb.AppendLine("  }");
@@ -809,7 +809,7 @@ public abstract class SharedEmitter
       {
         var ctor = dt.Constructors[i];
         var prefix = i == 0 ? "if" : "} else if";
-        Sb.AppendLine($"  {prefix} (value.is_{ctor.Name}) {{");
+        Sb.AppendLine($"  {prefix} (value.is_{TypeMapper.DafnyMangle(ctor.Name)}) {{");
         EmitConstructorToJson(dt, ctor, "    ", true, typeParamConverters);
       }
       Sb.AppendLine("  }");
@@ -834,7 +834,7 @@ public abstract class SharedEmitter
 
     foreach (var mapField in mapFields)
     {
-      var dafnyAccess = $"value.dtor_{mapField.Name}";
+      var dafnyAccess = $"value.dtor_{TypeMapper.DafnyMangle(mapField.Name)}";
       var tempVar = $"__{mapField.Name}Json";
       EmitMapToJsonBlock(mapField.Type, dafnyAccess, tempVar, indent, typeParamConverters);
     }
@@ -846,7 +846,7 @@ public abstract class SharedEmitter
     for (int i = 0; i < ctor.Fields.Count; i++)
     {
       var field = ctor.Fields[i];
-      var dafnyAccess = $"value.dtor_{field.Name}";
+      var dafnyAccess = $"value.dtor_{TypeMapper.DafnyMangle(field.Name)}";
       string converted;
 
       if (field.Type.Kind == TypeKind.Map)
@@ -987,7 +987,7 @@ public abstract class SharedEmitter
   {
     if (ctor.Fields.Count == 0)
     {
-      Sb.AppendLine($"  {ctor.Name}: () => {DomainModule}.{typeName}.create_{ctor.Name}(),");
+      Sb.AppendLine($"  {ctor.Name}: () => {DomainModule}.{typeName}.create_{TypeMapper.DafnyMangle(ctor.Name)}(),");
       return;
     }
 
@@ -1027,7 +1027,7 @@ public abstract class SharedEmitter
     }
 
     var argList = string.Join(", ", args);
-    Sb.AppendLine($"  {ctor.Name}: ({parms}) => {DomainModule}.{typeName}.create_{ctor.Name}({argList}),");
+    Sb.AppendLine($"  {ctor.Name}: ({parms}) => {DomainModule}.{typeName}.create_{TypeMapper.DafnyMangle(ctor.Name)}({argList}),");
   }
 
   protected void EmitModelAccessors(DatatypeInfo modelType)
@@ -1038,7 +1038,7 @@ public abstract class SharedEmitter
     foreach (var field in ctor.Fields)
     {
       var accessorName = "Get" + char.ToUpper(field.Name[0]) + field.Name.Substring(1);
-      var dafnyAccess = $"m.dtor_{field.Name}";
+      var dafnyAccess = $"m.dtor_{TypeMapper.DafnyMangle(field.Name)}";
 
       if (field.Type.Kind == TypeKind.Map && field.Type.TypeArgs.Count >= 2)
       {
@@ -1074,7 +1074,7 @@ public abstract class SharedEmitter
   {
     if (ctor.Fields.Count == 0)
     {
-      Sb.AppendLine($"  {ctor.Name}: () => {DomainModule}.Action.create_{ctor.Name}(),");
+      Sb.AppendLine($"  {ctor.Name}: () => {DomainModule}.Action.create_{TypeMapper.DafnyMangle(ctor.Name)}(),");
       return;
     }
 
@@ -1112,7 +1112,7 @@ public abstract class SharedEmitter
     }
 
     var argList = string.Join(", ", args);
-    Sb.AppendLine($"  {ctor.Name}: ({parms}) => {DomainModule}.Action.create_{ctor.Name}({argList}),");
+    Sb.AppendLine($"  {ctor.Name}: ({parms}) => {DomainModule}.Action.create_{TypeMapper.DafnyMangle(ctor.Name)}({argList}),");
   }
 
   protected void EmitFunctionWrapper(FunctionInfo func)

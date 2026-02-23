@@ -22,6 +22,16 @@ public static class TypeMapper
   }
 
   /// <summary>
+  /// Apply the same name mangling that the Dafny JS compiler uses for identifiers.
+  /// This ensures dtor_, is_, and create_ prefixed names match the compiled output.
+  /// Delegates to Dafny's own NonglobalVariable.SanitizeName.
+  /// </summary>
+  public static string DafnyMangle(string name)
+  {
+    return Microsoft.Dafny.NonglobalVariable.SanitizeName(name);
+  }
+
+  /// <summary>
   /// Convert a Dafny TypeRef to a TypeScript type string (JSON representation).
   /// </summary>
   public static string TypeRefToTypeScript(TypeRef type, bool preserveTypeParams = false)
@@ -232,7 +242,7 @@ public static class TypeMapper
     IEnumerable<string> args)
   {
     var argList = string.Join(", ", args);
-    return $"{moduleName}.{typeName}.create_{ctorName}({argList})";
+    return $"{moduleName}.{typeName}.create_{DafnyMangle(ctorName)}({argList})";
   }
 
   /// <summary>
@@ -240,7 +250,7 @@ public static class TypeMapper
   /// </summary>
   public static string IsVariant(string dafnyVar, string ctorName)
   {
-    return $"{dafnyVar}.is_{ctorName}";
+    return $"{dafnyVar}.is_{DafnyMangle(ctorName)}";
   }
 
   /// <summary>
@@ -248,7 +258,7 @@ public static class TypeMapper
   /// </summary>
   public static string Destructor(string dafnyVar, string fieldName)
   {
-    return $"{dafnyVar}.dtor_{fieldName}";
+    return $"{dafnyVar}.dtor_{DafnyMangle(fieldName)}";
   }
 
   // =========================================================================

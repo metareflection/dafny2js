@@ -294,7 +294,7 @@ public class AppJsEmitter
       foreach (var ctor in dt.Constructors)
       {
         _sb.AppendLine($"    case '{ctor.Name}':");
-        _sb.AppendLine($"      return {dt.ModuleName}.{dt.Name}.create_{ctor.Name}();");
+        _sb.AppendLine($"      return {dt.ModuleName}.{dt.Name}.create_{TypeMapper.DafnyMangle(ctor.Name)}();");
       }
       _sb.AppendLine("    default:");
       _sb.AppendLine($"      throw new Error(`Unknown {dt.Name}: ${{json}}`);");
@@ -322,7 +322,7 @@ public class AppJsEmitter
   {
     if (ctor.Fields.Count == 0)
     {
-      _sb.AppendLine($"{indent}return {dt.ModuleName}.{dt.Name}.create_{ctor.Name}();");
+      _sb.AppendLine($"{indent}return {dt.ModuleName}.{dt.Name}.create_{TypeMapper.DafnyMangle(ctor.Name)}();");
       return;
     }
 
@@ -349,7 +349,7 @@ public class AppJsEmitter
     }
 
     var argList = string.Join(",\n" + indent + "  ", args);
-    _sb.AppendLine($"{indent}return {dt.ModuleName}.{dt.Name}.create_{ctor.Name}(");
+    _sb.AppendLine($"{indent}return {dt.ModuleName}.{dt.Name}.create_{TypeMapper.DafnyMangle(ctor.Name)}(");
     _sb.AppendLine($"{indent}  {argList}");
     _sb.AppendLine($"{indent});");
   }
@@ -385,7 +385,7 @@ public class AppJsEmitter
       {
         var ctor = dt.Constructors[i];
         var prefix = i == 0 ? "if" : "} else if";
-        _sb.AppendLine($"  {prefix} (value.is_{ctor.Name}) {{");
+        _sb.AppendLine($"  {prefix} (value.is_{TypeMapper.DafnyMangle(ctor.Name)}) {{");
         _sb.AppendLine($"    return '{ctor.Name}';");
       }
       _sb.AppendLine("  }");
@@ -398,7 +398,7 @@ public class AppJsEmitter
       {
         var ctor = dt.Constructors[i];
         var prefix = i == 0 ? "if" : "} else if";
-        _sb.AppendLine($"  {prefix} (value.is_{ctor.Name}) {{");
+        _sb.AppendLine($"  {prefix} (value.is_{TypeMapper.DafnyMangle(ctor.Name)}) {{");
         GenerateConstructorToJson(dt, ctor, "    ", true, typeParamConverters);
       }
       _sb.AppendLine("  }");
@@ -424,7 +424,7 @@ public class AppJsEmitter
 
     foreach (var mapField in mapFields)
     {
-      var dafnyAccess = $"value.dtor_{mapField.Name}";
+      var dafnyAccess = $"value.dtor_{TypeMapper.DafnyMangle(mapField.Name)}";
       var tempVar = $"__{mapField.Name}Json";
       GenerateMapToJsonBlock(mapField.Type, dafnyAccess, tempVar, indent, typeParamConverters);
     }
@@ -436,7 +436,7 @@ public class AppJsEmitter
     for (int i = 0; i < ctor.Fields.Count; i++)
     {
       var field = ctor.Fields[i];
-      var dafnyAccess = $"value.dtor_{field.Name}";
+      var dafnyAccess = $"value.dtor_{TypeMapper.DafnyMangle(field.Name)}";
       string converted;
 
       // Handle map types specially - use pre-computed variable
@@ -573,7 +573,7 @@ public class AppJsEmitter
   {
     if (ctor.Fields.Count == 0)
     {
-      _sb.AppendLine($"  {ctor.Name}: () => {_domainModule}.{typeName}.create_{ctor.Name}(),");
+      _sb.AppendLine($"  {ctor.Name}: () => {_domainModule}.{typeName}.create_{TypeMapper.DafnyMangle(ctor.Name)}(),");
       return;
     }
 
@@ -586,7 +586,7 @@ public class AppJsEmitter
     }
 
     var argList = string.Join(", ", args);
-    _sb.AppendLine($"  {ctor.Name}: ({parms}) => {_domainModule}.{typeName}.create_{ctor.Name}({argList}),");
+    _sb.AppendLine($"  {ctor.Name}: ({parms}) => {_domainModule}.{typeName}.create_{TypeMapper.DafnyMangle(ctor.Name)}({argList}),");
   }
 
   void GenerateModelAccessors(DatatypeInfo modelType)
@@ -596,7 +596,7 @@ public class AppJsEmitter
     foreach (var field in ctor.Fields)
     {
       var accessorName = "Get" + char.ToUpper(field.Name[0]) + field.Name.Substring(1);
-      var dafnyAccess = $"m.dtor_{field.Name}";
+      var dafnyAccess = $"m.dtor_{TypeMapper.DafnyMangle(field.Name)}";
 
       // Handle map fields specially - provide lookup functions instead of raw conversion
       if (field.Type.Kind == TypeKind.Map && field.Type.TypeArgs.Count >= 2)
@@ -630,7 +630,7 @@ public class AppJsEmitter
   {
     if (ctor.Fields.Count == 0)
     {
-      _sb.AppendLine($"  {ctor.Name}: () => {_domainModule}.Action.create_{ctor.Name}(),");
+      _sb.AppendLine($"  {ctor.Name}: () => {_domainModule}.Action.create_{TypeMapper.DafnyMangle(ctor.Name)}(),");
       return;
     }
 
@@ -651,7 +651,7 @@ public class AppJsEmitter
     }
 
     var argList = string.Join(", ", args);
-    _sb.AppendLine($"  {ctor.Name}: ({parms}) => {_domainModule}.Action.create_{ctor.Name}({argList}),");
+    _sb.AppendLine($"  {ctor.Name}: ({parms}) => {_domainModule}.Action.create_{TypeMapper.DafnyMangle(ctor.Name)}({argList}),");
   }
 
   void GenerateFunctionWrapper(FunctionInfo func)

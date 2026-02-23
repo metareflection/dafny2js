@@ -9,7 +9,14 @@ permissions:
   contents: write
 
 jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+
   build:
+    needs: create-release
     strategy:
       matrix:
         include:

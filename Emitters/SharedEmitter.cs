@@ -900,7 +900,10 @@ public abstract class SharedEmitter
     Sb.AppendLine();
     Sb.AppendLine("const App = {");
 
-    // Generate constructors for helper datatypes
+    // AppCore functions take priority over datatype constructors
+    var appCoreFuncNames = Functions.Select(f => f.Name).ToHashSet();
+
+    // Generate constructors for helper datatypes (skip if AppCore provides same name)
     var helperTypes = Datatypes
       .Where(dt => dt.ModuleName == DomainModule &&
                    dt.Name != "Model" &&
@@ -912,7 +915,10 @@ public abstract class SharedEmitter
       Sb.AppendLine($"  // {helperType.Name} constructors");
       foreach (var ctor in helperType.Constructors)
       {
-        EmitDatatypeConstructor(helperType.Name, ctor);
+        if (!appCoreFuncNames.Contains(ctor.Name))
+        {
+          EmitDatatypeConstructor(helperType.Name, ctor);
+        }
       }
       Sb.AppendLine();
     }

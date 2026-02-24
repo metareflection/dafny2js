@@ -483,7 +483,11 @@ public class AppJsEmitter
     _sb.AppendLine();
     _sb.AppendLine("const App = {");
 
+    // AppCore functions take priority over datatype constructors
+    var appCoreFuncNames = _functions.Select(f => f.Name).ToHashSet();
+
     // Generate constructors for all domain helper datatypes (not Model or Action)
+    // Skip if AppCore provides a function with the same name
     var helperTypes = _datatypes
       .Where(dt => dt.ModuleName == _domainModule &&
                    dt.Name != "Model" &&
@@ -495,7 +499,10 @@ public class AppJsEmitter
       _sb.AppendLine($"  // {helperType.Name} constructors");
       foreach (var ctor in helperType.Constructors)
       {
-        GenerateDatatypeConstructor(helperType.Name, ctor);
+        if (!appCoreFuncNames.Contains(ctor.Name))
+        {
+          GenerateDatatypeConstructor(helperType.Name, ctor);
+        }
       }
       _sb.AppendLine();
     }

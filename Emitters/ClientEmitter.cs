@@ -263,7 +263,10 @@ public class ClientEmitter : SharedEmitter
     // Track emitted names to skip duplicates (access via _internal if needed)
     var emittedNames = new HashSet<string>();
 
-    // Generate constructors for helper datatypes
+    // AppCore functions take priority over datatype constructors
+    var appCoreFuncNames = Functions.Select(f => f.Name).ToHashSet();
+
+    // Generate constructors for helper datatypes (skip if AppCore provides same name)
     var helperTypes = Datatypes
       .Where(dt => dt.ModuleName == DomainModule &&
                    dt.Name != "Model" &&
@@ -275,7 +278,7 @@ public class ClientEmitter : SharedEmitter
       Sb.AppendLine($"  // {helperType.Name} constructors");
       foreach (var ctor in helperType.Constructors)
       {
-        if (emittedNames.Add(ctor.Name))
+        if (!appCoreFuncNames.Contains(ctor.Name) && emittedNames.Add(ctor.Name))
         {
           EmitDatatypeConstructor(helperType.Name, ctor);
         }
@@ -386,7 +389,10 @@ public class ClientEmitter : SharedEmitter
     Sb.AppendLine();
     Sb.AppendLine("const App = {");
 
-    // Generate constructors for helper datatypes
+    // AppCore functions take priority over datatype constructors
+    var appCoreFuncNames = Functions.Select(f => f.Name).ToHashSet();
+
+    // Generate constructors for helper datatypes (skip if AppCore provides same name)
     var helperTypes = Datatypes
       .Where(dt => dt.ModuleName == DomainModule &&
                    dt.Name != "Model" &&
@@ -398,7 +404,10 @@ public class ClientEmitter : SharedEmitter
       Sb.AppendLine($"  // {helperType.Name} constructors");
       foreach (var ctor in helperType.Constructors)
       {
-        EmitDatatypeConstructor(helperType.Name, ctor);
+        if (!appCoreFuncNames.Contains(ctor.Name))
+        {
+          EmitDatatypeConstructor(helperType.Name, ctor);
+        }
       }
       Sb.AppendLine();
     }

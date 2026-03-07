@@ -14,6 +14,7 @@ public abstract class SharedEmitter
   protected readonly string AppCoreModule;
   protected readonly string CjsFileName;
   protected readonly bool NullOptions;
+  protected readonly bool JsonApi;
   protected readonly StringBuilder Sb = new();
   protected HashSet<string> NeededSymbols = new();
 
@@ -23,7 +24,8 @@ public abstract class SharedEmitter
     string domainModule,
     string appCoreModule,
     string cjsFileName,
-    bool nullOptions = false)
+    bool nullOptions = false,
+    bool jsonApi = false)
   {
     Datatypes = datatypes;
     Functions = functions;
@@ -31,6 +33,7 @@ public abstract class SharedEmitter
     AppCoreModule = appCoreModule;
     CjsFileName = cjsFileName;
     NullOptions = nullOptions;
+    JsonApi = jsonApi;
   }
 
   /// <summary>
@@ -1126,10 +1129,14 @@ public abstract class SharedEmitter
     string parms;
     if (EmitTypeScript)
     {
-      // For params that get converted inside (primitives + erased wrappers), use JSON types
-      // For non-erased datatypes that are passed through, use Dafny runtime types
       var typedParams = func.Parameters.Select(p =>
       {
+        if (JsonApi)
+        {
+          // JSON API mode: all params use JSON types
+          return $"{p.Name}: {TypeMapper.TypeRefToTypeScript(p.Type)}";
+        }
+        // Default mode: non-erased datatypes use Dafny runtime types
         if ((p.Type.Kind == TypeKind.Datatype && !IsErasedWrapperType(p.Type)) || p.Type.Kind == TypeKind.Other)
           return $"{p.Name}: {TypeMapper.TypeRefToDafnyRuntime(p.Type)}";
         else
@@ -1145,14 +1152,18 @@ public abstract class SharedEmitter
     var convertedArgs = new List<string>();
     foreach (var p in func.Parameters)
     {
-      if ((p.Type.Kind == TypeKind.Datatype && !IsErasedWrapperType(p.Type)) || p.Type.Kind == TypeKind.Other)
+      if (JsonApi)
       {
-        // Non-erased datatype or Other: pass through (already a Dafny runtime object)
+        // JSON API mode: convert everything from JSON to Dafny
+        convertedArgs.Add(TypeMapper.JsonToDafny(p.Type, p.Name, DomainModule + "."));
+      }
+      else if ((p.Type.Kind == TypeKind.Datatype && !IsErasedWrapperType(p.Type)) || p.Type.Kind == TypeKind.Other)
+      {
+        // Default mode: non-erased datatype or Other: pass through
         convertedArgs.Add(p.Name);
       }
       else
       {
-        // Primitives and erased wrappers: convert from JSON to Dafny
         convertedArgs.Add(TypeMapper.JsonToDafny(p.Type, p.Name, DomainModule + "."));
       }
     }
@@ -1178,7 +1189,13 @@ public abstract class SharedEmitter
     if (type.Kind is TypeKind.Int or TypeKind.String or TypeKind.Bool or TypeKind.Seq)
       return TypeMapper.TypeRefToTypeScript(type);
 
-    // Everything else passes through as a Dafny runtime type
+    if (JsonApi)
+    {
+      // JSON API mode: all returns use JSON types
+      return TypeMapper.TypeRefToTypeScript(type);
+    }
+
+    // Default mode: everything else passes through as a Dafny runtime type
     if (type.Kind is TypeKind.Set or TypeKind.Map or TypeKind.Tuple)
       return TypeMapper.TypeRefToDafnyRuntime(type);
 
@@ -1194,6 +1211,8 @@ public abstract class SharedEmitter
       return $"toNumber({expr})";
     if (type.Kind == TypeKind.String)
       return $"dafnyStringToJs({expr})";
+    if (type.Kind == TypeKind.Bool)
+      return expr;
     if (type.Kind == TypeKind.Seq)
     {
       if (type.TypeArgs.Count > 0)
@@ -1204,6 +1223,12 @@ public abstract class SharedEmitter
         return $"seqToArray({expr}).map(x => {elemConvert})";
       }
       return $"seqToArray({expr})";
+    }
+
+    if (JsonApi)
+    {
+      // JSON API mode: convert datatypes and other complex types to JSON
+      return TypeMapper.DafnyToJson(type, $"({expr})", DomainModule + ".");
     }
 
     return expr;

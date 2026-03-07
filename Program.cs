@@ -86,11 +86,16 @@ class Program
       "Output file for logic surface JSON (default: stdout)"
     );
 
+    var jsonApiOpt = new Option<bool>(
+      new[] { "--json-api" },
+      "Generate function wrappers that accept and return JSON types (full marshalling)"
+    );
+
     var root = new RootCommand("Generate app.js and dafny-bundle.ts adapters from Dafny sources")
     {
       fileOpt, appCoreOpt, outputOpt, cjsNameOpt, listOpt,
       clientOpt, denoOpt, cloudflareOpt, nullOptionsOpt, dispatchOpt, cjsPathOpt,
-      claimsOpt, claimsOutputOpt, logicSurfaceOpt, logicSurfaceOutputOpt
+      claimsOpt, claimsOutputOpt, logicSurfaceOpt, logicSurfaceOutputOpt, jsonApiOpt
     };
 
     root.SetHandler(async (context) =>
@@ -110,6 +115,7 @@ class Program
       var claimsOutput = context.ParseResult.GetValueForOption(claimsOutputOpt);
       var logicSurface = context.ParseResult.GetValueForOption(logicSurfaceOpt);
       var logicSurfaceOutput = context.ParseResult.GetValueForOption(logicSurfaceOutputOpt);
+      var jsonApi = context.ParseResult.GetValueForOption(jsonApiOpt);
 
       if (!file.Exists)
       {
@@ -197,7 +203,8 @@ class Program
           appCoreModule,
           cjsFileName,
           nullOptions,
-          useTypeScript
+          useTypeScript,
+          jsonApi
         );
 
         var generated = emitter.Generate();

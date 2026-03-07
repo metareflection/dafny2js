@@ -14,8 +14,9 @@ public class ClientEmitter : SharedEmitter
     string appCoreModule,
     string cjsFileName,
     bool nullOptions = false,
-    bool useTypeScript = false)
-    : base(datatypes, functions, domainModule, appCoreModule, cjsFileName, nullOptions)
+    bool useTypeScript = false,
+    bool jsonApi = false)
+    : base(datatypes, functions, domainModule, appCoreModule, cjsFileName, nullOptions, jsonApi)
   {
     _useTypeScript = useTypeScript;
   }

@@ -98,6 +98,26 @@ public abstract class SharedEmitter
   }
 
   /// <summary>
+  /// Collect all Dafny module names needed at runtime.
+  /// Only includes DomainModule if it actually defines datatypes (avoids
+  /// ReferenceError when the compiled .cjs has no Domain module).
+  /// </summary>
+  protected List<string> GetAllModules(List<DatatypeInfo> allTypesToGenerate, IEnumerable<string>? extraModules = null)
+  {
+    var modules = allTypesToGenerate.Select(dt => dt.ModuleName);
+
+    if (Datatypes.Any(dt => dt.ModuleName == DomainModule))
+      modules = modules.Append(DomainModule);
+
+    modules = modules.Append(AppCoreModule);
+
+    if (extraModules != null)
+      modules = modules.Concat(extraModules);
+
+    return modules.Distinct().ToList();
+  }
+
+  /// <summary>
   /// Collect all datatype names referenced in function parameters and return types.
   /// </summary>
   protected HashSet<string> CollectReferencedDatatypes()

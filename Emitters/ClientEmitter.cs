@@ -29,12 +29,7 @@ public class ClientEmitter : SharedEmitter
     TypeMapper.EmitTypeScript = EmitTypeScript;
 
     var allTypesToGenerate = GetAllTypesToGenerate();
-    var allModules = allTypesToGenerate
-      .Select(dt => dt.ModuleName)
-      .Append(DomainModule)
-      .Append(AppCoreModule)
-      .Distinct()
-      .ToList();
+    var allModules = GetAllModules(allTypesToGenerate);
 
     // 1. Boilerplate
     EmitBoilerplate(allModules);

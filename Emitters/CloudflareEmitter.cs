@@ -34,13 +34,7 @@ public class CloudflareEmitter : SharedEmitter
     var allTypesToGenerate = GetAllTypesToGenerate();
 
     // Collect all modules needed (including collaboration modules from dispatches)
-    var allModules = allTypesToGenerate
-      .Select(dt => dt.ModuleName)
-      .Append(DomainModule)
-      .Append(AppCoreModule)
-      .Concat(_dispatches.Select(d => d.CollaborationModule))
-      .Distinct()
-      .ToList();
+    var allModules = GetAllModules(allTypesToGenerate, _dispatches.Select(d => d.CollaborationModule));
 
     // 1. Header and imports
     EmitHeader();

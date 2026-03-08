@@ -34,9 +34,10 @@ public class AppJsEmitter
 
     // Collect all modules we need to import
     var allTypesToGenerate = GetAllTypesToGenerate();
-    var allModules = allTypesToGenerate
-      .Select(dt => dt.ModuleName)
-      .Append(_domainModule)
+    var modules = allTypesToGenerate.Select(dt => dt.ModuleName);
+    if (_datatypes.Any(dt => dt.ModuleName == _domainModule))
+      modules = modules.Append(_domainModule);
+    var allModules = modules
       .Append(_appCoreModule)
       .Distinct()
       .ToList();

@@ -205,6 +205,10 @@ public static class TypeMapper
       TypeKind.Int => $"{x} => new BigNumber(x)",
       TypeKind.Bool => $"{x} => x",
       TypeKind.String => $"{x} => _dafny.Seq.UnicodeFromString(x)",
+      TypeKind.Seq => $"{x} => {JsonToDafnySeq(type, "x", moduleName, typeParamConverters)}",
+      TypeKind.Set => $"{x} => {JsonToDafnySet(type, "x", moduleName, typeParamConverters)}",
+      TypeKind.Map => $"{x} => {JsonToDafnyMap(type, "x", moduleName, typeParamConverters)}",
+      TypeKind.Tuple => $"{x} => {JsonToDafnyTuple(type, "x", moduleName, typeParamConverters)}",
       TypeKind.Datatype => type.TypeArgs.Count > 0
         ? $"{x} => {JsonToDafnyDatatype(type, "x", moduleName, typeParamConverters)}"
         : $"{SanitizeForJs(type.Name).ToLowerInvariant()}FromJson",
@@ -224,6 +228,10 @@ public static class TypeMapper
       TypeKind.Int => "toNumber",
       TypeKind.Bool => $"{x} => x",
       TypeKind.String => "dafnyStringToJs",
+      TypeKind.Seq => $"{x} => {DafnyToJsonSeq(type, "x", moduleName, typeParamConverters)}",
+      TypeKind.Set => $"{x} => {DafnyToJsonSet(type, "x", moduleName, typeParamConverters)}",
+      TypeKind.Map => $"{x} => {DafnyToJsonMap(type, "x", moduleName, typeParamConverters)}",
+      TypeKind.Tuple => $"{x} => {DafnyToJsonTuple(type, "x", moduleName, typeParamConverters)}",
       TypeKind.Datatype => type.TypeArgs.Count > 0
         ? $"{x} => {DafnyToJsonDatatype(type, "x", moduleName, typeParamConverters)}"
         : $"{SanitizeForJs(type.Name).ToLowerInvariant()}ToJson",

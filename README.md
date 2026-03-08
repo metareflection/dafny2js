@@ -82,6 +82,7 @@ dotnet run -- --file ../CounterDomain.dfy --list
 | `--node` | Output path for Node-compatible adapter (TypeScript, uses `fs.readFileSync`) |
 | `--deno` | Output path for Deno adapter (`dafny-bundle.ts`) |
 | `--cloudflare` | Output path for Cloudflare Workers adapter |
+| `--inline` | Output path for universal adapter (TypeScript, inlines `.cjs` code; works in any bundler/runtime) |
 | `--cjs-path` | Path to the `.cjs` file (required for `--deno`/`--cloudflare`) |
 | `--null-options` | Enable null-based `Option` handling for DB compatibility |
 | `--json-api` | Generate function wrappers that accept and return JSON types (full marshalling) |
@@ -161,6 +162,7 @@ dafny2js/
 │   ├── SharedEmitter.cs # Common: helpers, type converters, constructors
 │   ├── ClientEmitter.cs    # Client-specific: JS or TS for Vite/React
 │   ├── NodeEmitter.cs      # Node-compatible: fs.readFileSync bootstrap
+│   ├── InlineEmitter.cs    # Universal: inlines .cjs, works in any bundler/runtime
 │   ├── DenoEmitter.cs      # Deno-specific: esm.sh imports, dispatch()
 │   └── CloudflareEmitter.cs # Cloudflare Workers adapter
 └── dafny2js.csproj

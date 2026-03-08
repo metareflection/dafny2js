@@ -66,7 +66,7 @@ public class ClientEmitter : SharedEmitter
     return Sb.ToString();
   }
 
-  void EmitBoilerplate(List<string> moduleNames)
+  protected virtual void EmitBoilerplate(List<string> moduleNames)
   {
     var modules = string.Join(", ", moduleNames);
 

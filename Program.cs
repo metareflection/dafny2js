@@ -86,6 +86,11 @@ class Program
       "Output file for logic surface JSON (default: stdout)"
     );
 
+    var nodeOpt = new Option<FileInfo?>(
+      new[] { "--node" },
+      "Output path for Node-compatible adapter (TypeScript, uses fs.readFileSync)"
+    );
+
     var jsonApiOpt = new Option<bool>(
       new[] { "--json-api" },
       "Generate function wrappers that accept and return JSON types (full marshalling)"
@@ -95,7 +100,7 @@ class Program
     {
       fileOpt, appCoreOpt, outputOpt, cjsNameOpt, listOpt,
       clientOpt, denoOpt, cloudflareOpt, nullOptionsOpt, dispatchOpt, cjsPathOpt,
-      claimsOpt, claimsOutputOpt, logicSurfaceOpt, logicSurfaceOutputOpt, jsonApiOpt
+      claimsOpt, claimsOutputOpt, logicSurfaceOpt, logicSurfaceOutputOpt, nodeOpt, jsonApiOpt
     };
 
     root.SetHandler(async (context) =>
@@ -115,6 +120,7 @@ class Program
       var claimsOutput = context.ParseResult.GetValueForOption(claimsOutputOpt);
       var logicSurface = context.ParseResult.GetValueForOption(logicSurfaceOpt);
       var logicSurfaceOutput = context.ParseResult.GetValueForOption(logicSurfaceOutputOpt);
+      var node = context.ParseResult.GetValueForOption(nodeOpt);
       var jsonApi = context.ParseResult.GetValueForOption(jsonApiOpt);
 
       if (!file.Exists)
@@ -210,6 +216,24 @@ class Program
         var generated = emitter.Generate();
         await File.WriteAllTextAsync(clientOutput.FullName, generated);
         Console.WriteLine($"Generated client: {clientOutput.FullName}");
+      }
+
+      // Generate Node output
+      if (node != null)
+      {
+        var emitter = new NodeEmitter(
+          datatypes,
+          functions,
+          domainModule,
+          appCoreModule,
+          cjsFileName,
+          nullOptions,
+          jsonApi
+        );
+
+        var generated = emitter.Generate();
+        await File.WriteAllTextAsync(node.FullName, generated);
+        Console.WriteLine($"Generated Node adapter: {node.FullName}");
       }
 
       // Generate Deno output
@@ -323,7 +347,7 @@ class Program
       }
 
       // If neither --client nor --deno nor --cloudflare specified, default to legacy behavior
-      if (clientOutput == null && deno == null && cloudflare == null)
+      if (clientOutput == null && node == null && deno == null && cloudflare == null)
       {
         // Use legacy AppJsEmitter for backwards compatibility
         var emitter = new AppJsEmitter(

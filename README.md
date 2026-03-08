@@ -79,10 +79,17 @@ dotnet run -- --file ../CounterDomain.dfy --list
 | `--app-core`, `-a` | Name of the AppCore module (auto-detected if omitted) |
 | `--cjs-name`, `-c` | Name of the `.cjs` file to import |
 | `--client` | Output path for client adapter (`.js` or `.ts` based on extension) |
+| `--node` | Output path for Node-compatible adapter (TypeScript, uses `fs.readFileSync`) |
 | `--deno` | Output path for Deno adapter (`dafny-bundle.ts`) |
-| `--cjs-path` | Path to the `.cjs` file (required for `--deno`) |
+| `--cloudflare` | Output path for Cloudflare Workers adapter |
+| `--cjs-path` | Path to the `.cjs` file (required for `--deno`/`--cloudflare`) |
 | `--null-options` | Enable null-based `Option` handling for DB compatibility |
-| `--dispatch` | Dispatch function for Deno (format: `name:Module.Dispatch` or `Module.Dispatch`) |
+| `--json-api` | Generate function wrappers that accept and return JSON types (full marshalling) |
+| `--dispatch` | Dispatch function for Deno/Cloudflare (format: `name:Module.Dispatch` or `Module.Dispatch`) |
+| `--claims` | Extract proof claims (predicates, lemmas, axioms) as JSON |
+| `--claims-output` | Output file for claims JSON (default: stdout) |
+| `--logic-surface` | Extract complete logic surface (datatypes, actions, invariants, claims) as JSON |
+| `--logic-surface-output` | Output file for logic surface JSON (default: stdout) |
 | `--list`, `-l` | List datatypes and functions (for debugging) |
 
 ## TypeScript Support
@@ -152,8 +159,10 @@ dafny2js/
 ├── TypeMapper.cs        # Generate conversion expressions per type
 ├── Emitters/
 │   ├── SharedEmitter.cs # Common: helpers, type converters, constructors
-│   ├── ClientEmitter.cs # Client-specific: JS or TS for Vite/React
-│   └── DenoEmitter.cs   # Deno-specific: esm.sh imports, dispatch()
+│   ├── ClientEmitter.cs    # Client-specific: JS or TS for Vite/React
+│   ├── NodeEmitter.cs      # Node-compatible: fs.readFileSync bootstrap
+│   ├── DenoEmitter.cs      # Deno-specific: esm.sh imports, dispatch()
+│   └── CloudflareEmitter.cs # Cloudflare Workers adapter
 └── dafny2js.csproj
 ```
 

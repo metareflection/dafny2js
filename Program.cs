@@ -91,6 +91,11 @@ class Program
       "Output path for Node-compatible adapter (TypeScript, uses fs.readFileSync)"
     );
 
+    var inlineOpt = new Option<FileInfo?>(
+      new[] { "--inline" },
+      "Output path for universal adapter (TypeScript, inlines .cjs code; works in any bundler/runtime)"
+    );
+
     var jsonApiOpt = new Option<bool>(
       new[] { "--json-api" },
       "Generate function wrappers that accept and return JSON types (full marshalling)"
@@ -100,7 +105,7 @@ class Program
     {
       fileOpt, appCoreOpt, outputOpt, cjsNameOpt, listOpt,
       clientOpt, denoOpt, cloudflareOpt, nullOptionsOpt, dispatchOpt, cjsPathOpt,
-      claimsOpt, claimsOutputOpt, logicSurfaceOpt, logicSurfaceOutputOpt, nodeOpt, jsonApiOpt
+      claimsOpt, claimsOutputOpt, logicSurfaceOpt, logicSurfaceOutputOpt, nodeOpt, inlineOpt, jsonApiOpt
     };
 
     root.SetHandler(async (context) =>
@@ -121,6 +126,7 @@ class Program
       var logicSurface = context.ParseResult.GetValueForOption(logicSurfaceOpt);
       var logicSurfaceOutput = context.ParseResult.GetValueForOption(logicSurfaceOutputOpt);
       var node = context.ParseResult.GetValueForOption(nodeOpt);
+      var inline = context.ParseResult.GetValueForOption(inlineOpt);
       var jsonApi = context.ParseResult.GetValueForOption(jsonApiOpt);
 
       if (!file.Exists)
@@ -236,6 +242,45 @@ class Program
         Console.WriteLine($"Generated Node adapter: {node.FullName}");
       }
 
+      // Generate inline (universal) output
+      if (inline != null)
+      {
+        var cjsFilePath = cjsPath?.FullName;
+        if (cjsFilePath == null)
+        {
+          var inlineDir = Path.GetDirectoryName(inline.FullName) ?? ".";
+          cjsFilePath = Path.Combine(inlineDir, cjsFileName);
+
+          if (!File.Exists(cjsFilePath))
+          {
+            cjsFilePath = Path.Combine(".", cjsFileName);
+          }
+
+          if (!File.Exists(cjsFilePath))
+          {
+            await Console.Error.WriteLineAsync($"Error: Cannot find .cjs file. Use --cjs-path to specify the path.");
+            await Console.Error.WriteLineAsync($"Tried: {Path.Combine(Path.GetDirectoryName(inline.FullName) ?? ".", cjsFileName)}");
+            context.ExitCode = 1;
+            return;
+          }
+        }
+
+        var emitter = new InlineEmitter(
+          datatypes,
+          functions,
+          domainModule,
+          appCoreModule,
+          cjsFileName,
+          cjsFilePath,
+          nullOptions,
+          jsonApi
+        );
+
+        var generated = emitter.Generate();
+        await File.WriteAllTextAsync(inline.FullName, generated);
+        Console.WriteLine($"Generated inline adapter: {inline.FullName}");
+      }
+
       // Generate Deno output
       if (deno != null)
       {
@@ -347,7 +392,7 @@ class Program
       }
 
       // If neither --client nor --deno nor --cloudflare specified, default to legacy behavior
-      if (clientOutput == null && node == null && deno == null && cloudflare == null)
+      if (clientOutput == null && node == null && inline == null && deno == null && cloudflare == null)
       {
         // Use legacy AppJsEmitter for backwards compatibility
         var emitter = new AppJsEmitter(

@@ -129,14 +129,6 @@ public class DenoEmitter : SharedEmitter
     Sb.AppendLine($"const {{ _dafny, {modules} }} = initDafny(require, exports, module);");
   }
 
-  string EscapeForTemplateLiteral(string code)
-  {
-    // Escape backticks, backslashes, and $ for template literal
-    return code
-      .Replace("\\", "\\\\")
-      .Replace("`", "\\`")
-      .Replace("$", "\\$");
-  }
 
   void EmitNullOptionPreprocessing()
   {

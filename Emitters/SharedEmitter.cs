@@ -47,6 +47,17 @@ public abstract class SharedEmitter
   protected virtual bool EmitTypeScript => false;
 
   /// <summary>
+  /// Escape a string for embedding inside a JavaScript template literal.
+  /// </summary>
+  protected static string EscapeForTemplateLiteral(string code)
+  {
+    return code
+      .Replace("\\", "\\\\")
+      .Replace("`", "\\`")
+      .Replace("$", "\\$");
+  }
+
+  /// <summary>
   /// Get all datatypes that need to be generated (domain + referenced).
   /// </summary>
   protected List<DatatypeInfo> GetAllTypesToGenerate()

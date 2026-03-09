@@ -288,38 +288,40 @@ public static class TypeExtractor
 
       foreach (var decl in module.TopLevelDecls)
       {
-        // Module-level functions are in the default class (named "_default")
-        if (decl is DefaultClassDecl defaultClass)
+        IEnumerable<MemberDecl>? members = decl switch
         {
-          foreach (var member in defaultClass.Members)
-          {
-            if (member is Function func && !func.IsGhost)
-            {
-              var returnType = TypeToRef(func.ResultType);
-              var parameters = func.Ins
-                .Where(p => !p.IsGhost)
-                .Select(p => new FieldInfo(p.Name, TypeToRef(p.Type)))
-                .ToList();
+          DefaultClassDecl dc => dc.Members,
+          TopLevelDeclWithMembers md => md.Members,
+          _ => null
+        };
+        if (members == null) continue;
 
-              result.Add(new FunctionInfo(func.Name, parameters, returnType));
-            }
+        foreach (var member in members)
+        {
+          if (member is Function func && !func.IsGhost)
+          {
+            var returnType = TypeToRef(func.ResultType);
+            var parameters = func.Ins
+              .Where(p => !p.IsGhost)
+              .Select(p => new FieldInfo(p.Name, TypeToRef(p.Type)))
+              .ToList();
+
+            result.Add(new FunctionInfo(func.Name, parameters, returnType));
           }
-        }
-        // Also check other TopLevelDeclWithMembers (classes, etc.)
-        else if (decl is TopLevelDeclWithMembers memberDecl)
-        {
-          foreach (var member in memberDecl.Members)
+          else if (member is Method method && member is not Lemma && !method.IsGhost)
           {
-            if (member is Function func && !func.IsGhost)
-            {
-              var returnType = TypeToRef(func.ResultType);
-              var parameters = func.Ins
-                .Where(p => !p.IsGhost)
-                .Select(p => new FieldInfo(p.Name, TypeToRef(p.Type)))
-                .ToList();
+            var outs = method.Outs.Where(o => !o.IsGhost).ToList();
+            TypeRef returnType = outs.Count == 1
+              ? TypeToRef(outs[0].Type)
+              : new TypeRef(TypeKind.Tuple, $"Tuple{outs.Count}",
+                  outs.Select(o => TypeToRef(o.Type)).ToList());
 
-              result.Add(new FunctionInfo(func.Name, parameters, returnType));
-            }
+            var parameters = method.Ins
+              .Where(p => !p.IsGhost)
+              .Select(p => new FieldInfo(p.Name, TypeToRef(p.Type)))
+              .ToList();
+
+            result.Add(new FunctionInfo(method.Name, parameters, returnType));
           }
         }
       }

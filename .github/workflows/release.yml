@@ -43,7 +43,7 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Publish
-        run: dotnet publish -c Release -r ${{ matrix.rid }} --self-contained /p:PublishSingleFile=true
+        run: dotnet publish -c Release -r ${{ matrix.rid }} --self-contained -p:PublishSingleFile=true
 
       - name: Package
         run: |

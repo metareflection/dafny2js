@@ -47,10 +47,9 @@ jobs:
 
       - name: Package
         run: |
-          cd bin/Release/net8.0/${{ matrix.rid }}/publish
           BINARY=dafny2js
           if [[ "${{ matrix.rid }}" == win-* ]]; then BINARY=dafny2js.exe; fi
-          tar czf "${GITHUB_WORKSPACE}/dafny2js-${{ matrix.rid }}.tar.gz" $BINARY
+          tar czf dafny2js-${{ matrix.rid }}.tar.gz -C bin/Release/net8.0/${{ matrix.rid }}/publish $BINARY
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

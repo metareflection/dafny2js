@@ -21,8 +21,14 @@ jobs:
             rid: linux-x64
           - os: ubuntu-latest
             rid: linux-arm64
+          - os: windows-latest
+            rid: win-x64
 
     runs-on: ${{ matrix.os }}
+
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Checkout dafny2js
@@ -42,7 +48,9 @@ jobs:
       - name: Package
         run: |
           cd bin/Release/net8.0/${{ matrix.rid }}/publish
-          tar czf ${{ github.workspace }}/dafny2js-${{ matrix.rid }}.tar.gz dafny2js
+          BINARY=dafny2js
+          if [[ "${{ matrix.rid }}" == win-* ]]; then BINARY=dafny2js.exe; fi
+          tar czf ${{ github.workspace }}/dafny2js-${{ matrix.rid }}.tar.gz $BINARY
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
